@@ -1,0 +1,20 @@
+Initial release: Lian Li Universal Screen 8.8" LED ring plugin
+
+InfoPanel plugin that drives the addressable LED ring on the Lian Li
+Universal Screen 8.8" (ring: VID 0x0416 / PID 0x8050).
+
+- USB transport for the LED ring (64-byte bulk packets, cmd 0x11,
+  3 packets per 60-LED frame)
+- All 19 L-Connect effects rendered host-side and streamed at the
+  vendor speed x interval cadence (original implementations)
+- Up to 6 colors for multi-color effects, with a live count control
+- Speed, brightness, and reverse-direction options
+- Bundled WPF color picker (LedRingColorPicker.exe) using MahApps,
+  launched from the "Configure Colors..." plugin action
+- Auto-reconnect if the ring is unplugged/replugged
+- Config persisted by the host; colors persisted to
+  %LOCALAPPDATA%\InfoPanel\plugins\lianli-led-ring.colors.txt
+
+Builds standalone against a bundled copy of InfoPanel.Plugins.dll
+(lib/), referenced compile-only (Private=false) so the host provides
+it at runtime.
