@@ -78,8 +78,7 @@ understanding of the observed effect behavior.
 - [InfoPanel](https://github.com/habibrehmansg/infopanel) by habibrehmansg - the host app and plugin SDK.
 - Protocol understanding aided by [sgtaziz/lian-li-linux](https://github.com/sgtaziz/lian-li-linux).
 
-Not affiliated with Lian Li Industrial Co., Ltd. Protocol details were determined through
-reverse engineering for interoperability.
+Not affiliated with Lian Li Industrial Co., Ltd. 
 
 ## License
 
