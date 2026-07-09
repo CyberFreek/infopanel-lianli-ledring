@@ -274,11 +274,26 @@ namespace InfoPanel.LianLiLedRing
 
         private static IEnumerable<string> CandidatePickerDirs()
         {
-            // The plugin is loaded from the plugin folder via an isolated
-            // AssemblyLoadContext, so the exe sits next to THIS assembly - not
-            // next to the host process (AppContext.BaseDirectory).
+            // Fast path: next to this assembly. Works on a normal (first) load.
             var asmDir = Path.GetDirectoryName(typeof(LianLiLedRingPlugin).Assembly.Location);
             if (!string.IsNullOrEmpty(asmDir)) yield return asmDir;
+
+            // After InfoPanel's "Reload", the plugin is re-loaded into a
+            // collectible AssemblyLoadContext whose Assembly.Location comes back
+            // EMPTY - so the line above yields nothing and we'd otherwise only
+            // look in InfoPanel's install dir. Scan the plugins folder directly
+            // instead; this is reload-proof.
+            var pluginsRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "InfoPanel", "plugins");
+            if (Directory.Exists(pluginsRoot))
+            {
+                foreach (var dir in Directory.EnumerateDirectories(pluginsRoot))
+                {
+                    yield return dir;
+                }
+            }
+
             yield return AppContext.BaseDirectory;
         }
 
