@@ -160,6 +160,7 @@ namespace InfoPanel.LianLiLedRing
                     break;
                 case "effect":
                     _effectName = value as string ?? _effectName;
+                    SaveEffect(); // let an open picker grey out unused color slots
                     break;
                 case "speed":
                     _speed = Math.Clamp(Convert.ToInt32(value, CultureInfo.InvariantCulture), 1, 10);
@@ -183,6 +184,7 @@ namespace InfoPanel.LianLiLedRing
         public override void Load(List<IPluginContainer> containers)
         {
             LoadColors();
+            SaveEffect();
             StartColorsWatcher();
 
             var container = new PluginContainer("led-ring", "LED Ring");
@@ -237,6 +239,7 @@ namespace InfoPanel.LianLiLedRing
             try
             {
                 SaveColors(); // make sure the picker sees current values
+                SaveEffect(); // and the current effect, so it can grey unused slots
 
                 var exePath = ResolvePickerPath();
                 if (exePath == null)
@@ -294,6 +297,25 @@ namespace InfoPanel.LianLiLedRing
             "InfoPanel",
             "plugins",
             "lianli-led-ring.colors.txt");
+
+        private static string EffectFilePath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "InfoPanel",
+            "plugins",
+            "lianli-led-ring.effect.txt");
+
+        private void SaveEffect()
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(EffectFilePath)!);
+                File.WriteAllText(EffectFilePath, _effectName);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Failed to write LED effect file");
+            }
+        }
 
         /// <summary>
         /// Colors picked via the native dialog can't be pushed back through the

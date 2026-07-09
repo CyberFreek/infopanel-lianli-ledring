@@ -1,5 +1,6 @@
 using MahApps.Metro.Controls;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -15,8 +16,40 @@ namespace InfoPanel.LianLiLedRing.Picker
             "#FF0000", "#FF9900", "#FFFF00", "#00FF66", "#33FFFF", "#4257F8",
         };
 
+        // How many of the six colors each effect actually uses.
+        //   0  = the effect generates its own colors (your colors are ignored)
+        //   6  = variable; the "Colors used" count applies
+        //   1-4 = fixed number of colors
+        // Mirrors the effect implementations in the plugin engine.
+        private static readonly Dictionary<string, int> EffectColorCount = new()
+        {
+            ["Off"] = 0,
+            ["Rainbow"] = 0,
+            ["Wave"] = 6,
+            ["Static Color"] = 1,
+            ["Breathing"] = 1,
+            ["Rainbow Morph"] = 0,
+            ["Paint"] = 6,
+            ["Runway"] = 2,
+            ["Tide"] = 6,
+            ["Blow Up"] = 6,
+            ["Meteor"] = 6,
+            ["Snooker"] = 6,
+            ["Mixing"] = 2,
+            ["Ping-Pong"] = 6,
+            ["Bullet Stack"] = 0,
+            ["Twinkle"] = 0,
+            ["River"] = 2,
+            ["Hourglass"] = 4,
+            ["Electric Current"] = 4,
+            ["Rainbow Wave"] = 0,
+        };
+
         private readonly string _filePath;
+        private readonly string _effectFilePath;
         private readonly ObservableCollection<ColorRow> _rows = new();
+        private FileSystemWatcher? _effectWatcher;
+        private string _effect = "";
         private bool _loading;
 
         public MainWindow()
@@ -30,6 +63,9 @@ namespace InfoPanel.LianLiLedRing.Picker
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "InfoPanel", "plugins", "lianli-led-ring.colors.txt");
 
+            _effectFilePath = Path.Combine(
+                Path.GetDirectoryName(_filePath) ?? ".", "lianli-led-ring.effect.txt");
+
             for (var i = 0; i < 6; i++)
             {
                 var row = new ColorRow(i);
@@ -38,10 +74,10 @@ namespace InfoPanel.LianLiLedRing.Picker
             }
 
             ColorList.ItemsSource = _rows;
+            LoadEffect();
             Load();
+            StartEffectWatcher();
 
-            // Make sure the window comes to the front when launched from the
-            // plugin host (which is not the foreground process).
             Loaded += (_, _) =>
             {
                 Topmost = true;
@@ -49,12 +85,64 @@ namespace InfoPanel.LianLiLedRing.Picker
                 Topmost = false;
                 Focus();
             };
+
+            Closed += (_, _) => _effectWatcher?.Dispose();
         }
 
         private int Count
         {
             get => (int)(CountBox.Value ?? 6);
             set => CountBox.Value = Math.Clamp(value, 1, 6);
+        }
+
+        private int EffectMax => EffectColorCount.TryGetValue(_effect, out var m) ? m : 6;
+
+        private int ActiveSlots()
+        {
+            var max = EffectMax;
+            return max == 0 ? 0 : Math.Min(max, Count);
+        }
+
+        private void LoadEffect()
+        {
+            try
+            {
+                _effect = File.Exists(_effectFilePath)
+                    ? File.ReadAllText(_effectFilePath).Trim()
+                    : "";
+            }
+            catch
+            {
+                _effect = "";
+            }
+        }
+
+        private void StartEffectWatcher()
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(_effectFilePath)!;
+                Directory.CreateDirectory(dir);
+                _effectWatcher = new FileSystemWatcher(dir, Path.GetFileName(_effectFilePath))
+                {
+                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
+                    EnableRaisingEvents = true,
+                };
+                FileSystemEventHandler onChange = (_, _) =>
+                {
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        LoadEffect();
+                        UpdateOpacities();
+                    });
+                };
+                _effectWatcher.Changed += onChange;
+                _effectWatcher.Created += onChange;
+            }
+            catch
+            {
+                // effect awareness is a nicety; ignore if the watcher can't start
+            }
         }
 
         private void Load()
@@ -121,15 +209,33 @@ namespace InfoPanel.LianLiLedRing.Picker
 
         private void UpdateOpacities()
         {
-            // NumericUpDown raises ValueChanged while the XAML is still being
-            // parsed (before the constructor fills _rows), so guard the access.
             if (_rows.Count < 6) return;
 
-            var count = Count;
+            var active = ActiveSlots();
             for (var i = 0; i < 6; i++)
             {
-                _rows[i].Opacity = i < count ? 1.0 : 0.35;
+                _rows[i].IsActive = i < active;
+                _rows[i].Opacity = i < active ? 1.0 : 0.35;
             }
+
+            CountPanel.IsEnabled = EffectMax >= 2;
+            EffectHeader.Text = DescribeEffect();
+        }
+
+        private string DescribeEffect()
+        {
+            if (string.IsNullOrEmpty(_effect))
+            {
+                return "Set the colors used by multi-color effects.";
+            }
+
+            return EffectMax switch
+            {
+                0 => $"“{_effect}” uses its own colors - the colors below don't apply.",
+                1 => $"“{_effect}” uses 1 color.",
+                6 => $"“{_effect}” uses up to 6 colors (set with “Colors used”).",
+                _ => $"“{_effect}” uses {EffectMax} colors.",
+            };
         }
 
         private void Row_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -142,7 +248,7 @@ namespace InfoPanel.LianLiLedRing.Picker
 
         private void CountBox_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double?> e)
         {
-            if (_rows.Count < 6) return; // ignore the change raised during XAML init
+            if (_rows.Count < 6) return;
             UpdateOpacities();
             Save();
         }
@@ -183,6 +289,7 @@ namespace InfoPanel.LianLiLedRing.Picker
         {
             private Color _color = Colors.White;
             private double _opacity = 1.0;
+            private bool _isActive = true;
 
             public ColorRow(int index)
             {
@@ -213,6 +320,19 @@ namespace InfoPanel.LianLiLedRing.Picker
                     {
                         _opacity = value;
                         OnChanged(nameof(Opacity));
+                    }
+                }
+            }
+
+            public bool IsActive
+            {
+                get => _isActive;
+                set
+                {
+                    if (_isActive != value)
+                    {
+                        _isActive = value;
+                        OnChanged(nameof(IsActive));
                     }
                 }
             }
