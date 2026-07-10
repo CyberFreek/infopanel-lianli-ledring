@@ -46,6 +46,17 @@ actual color plus its hex code) and a "Colors used" control. Single-color effect
 Color 1; multi-color effects cycle through the active colors. Changes apply to the ring
 immediately. Colors are stored in `%LOCALAPPDATA%\InfoPanel\plugins\lianli-led-ring.colors.txt`.
 
+<img width="1636" height="684" alt="image" src="https://github.com/user-attachments/assets/c05377bc-564d-4153-9d77-21e4ff02220a" />
+
+There are a variety of lighting effects:
+<img width="1627" height="856" alt="image" src="https://github.com/user-attachments/assets/a2990ac2-5d84-49dd-86ba-8d602617a5a2" />
+
+There is also a color picker that will allow you to customize the LED colors used in the effect.
+<img width="675" height="682" alt="image" src="https://github.com/user-attachments/assets/51ed32fe-09ce-48fc-a5e1-da2f4aa4290f" />
+
+
+
+
 ## Build
 
 Requires the .NET 8 SDK on Windows.
